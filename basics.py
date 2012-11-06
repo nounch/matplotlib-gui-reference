@@ -1,0 +1,222 @@
+#!/usr/bin/env python
+
+
+import os
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import pylab
+
+
+fig = plt.figure()
+output_dir = './output/'
+
+def run(show=True, save=False):
+
+    # First subplot
+    data1 = np.arange(0, 10, .2)
+    ax1 = fig.add_subplot(221)
+    for i in range(5):
+        ax1.plot(data1, data1 ** (i * 0.15), 'r.', label='Points')
+    ax1.legend()
+
+    # # Transformation
+    # ax1.set_xlim(0, 10)
+    # ax1.set_ylim(-1, 1)
+
+    # Second subplot
+    data2 = np.arange(0, 20, .3)
+    ax2 = fig.add_subplot(122, polar=False)
+    ax2.plot(data2, data2 ** 2, 'b+', label='Data points')
+
+    # Event handling
+    def onclick(event):
+        print 'button=%d, x=%d, y=%d, xdata=%f, ydata=%f'%(
+            event.button, event.x, event.y, event.xdata, event.ydata)
+
+    mouse_press_id = fig.canvas.mpl_connect('button_press_event', onclick)
+    # fig.canvas.mpl_disconnect(mouse_press_id)
+
+    # Drawing/saving
+    if save:
+        try:
+            os.makedirs(output_dir)
+        except OSError:
+            pass
+
+        fig.savefig(output_dir + 'plot.png', facecolor='white',
+                    orientation='portrait', transparent=True)
+    ax2.legend()
+
+    if show:
+        plt.show()
+
+def multi_plot(data, plots=10, steps=1, align_vertical=False,
+               bbox_props=None, save=False, show=True, fill=False):
+    subplot_grid_x = 0
+    
+    adjusted_plots = len(range(0, len(data), steps))
+
+    if adjusted_plots % 2 == 0:  # Even number of plots
+        subplot_grid_x = adjusted_plots / 2
+    else:  # Odd number of plots
+        subplot_grid_x = (adjusted_plots + 1) / 2
+    subplot_grid_y = 2
+
+    if align_vertical:
+        subplot_grid_x, subplot_grid_y = subplot_grid_y, subplot_grid_x
+
+    d = []  # Data for the actual plot
+    for i in range(1, adjusted_plots + 1):
+        d.append(data[i])
+
+    index = range(0, plots + 1, steps)  # Helper index
+    null_values = [0 for i in range(len(data))]
+
+    # for i in range(1, adjusted_plots + 1):
+    for i, p in enumerate(d):
+        ax = fig.add_subplot(subplot_grid_x, subplot_grid_y, i + 1)
+        # ax.autoscale(False)
+        # pylab.xlim([data[0], data[-1]])
+        
+        # ax.set_xlim(0, len(data))
+        # ax.set_ylim(data[0], data[-1])
+        
+        # pylab.ylim([data[0], data[-1]])  # Alternative
+        ii = index[i] + 1
+        ax.text(0.05, 0.95, 'Plot  ' + str(i + 1) + '\nStep ' + str(ii),
+                fontsize=15, fontweight='bold', transform=ax.transAxes,
+                va='top', alpha=0.3, bbox=bbox_props)
+        ax.plot(data[:i], data[:i] ** 3, 'ro')
+        if fill:
+            ax2 = fig.add_subplot(subplot_grid_x, subplot_grid_y, i + 1)
+            ax2.fill_between(data[:i], data[:i] ** 3, facecolor='blue',
+                             alpha=0.5)
+
+    if align_vertical:
+        plt.tight_layout()
+        
+    if show:
+        plt.show()
+
+    # Drawing/saving
+    if save:
+        try:
+            os.makedirs(output_dir)
+        except OSError:
+            pass
+
+        fig.savefig(output_dir + 'plot.png', facecolor='white',
+                    orientation='portrait', transparent=True)
+
+def sliders(data=np.arange):
+    from matplotlib.widgets import Slider, Button, RadioButtons
+
+    y_mod = 3
+
+    xdata = data
+    ydata = data ** y_mod
+
+    ax = fig.add_subplot(111)
+    fig.subplots_adjust(left=0.25, bottom=0.25)
+    curve, = ax.plot(xdata, ydata, 'ro')
+
+    x_slider_axis = fig.add_axes([0.25, 0.15, 0.65, 0.03], axisbg='red')
+    y_slider_axis = fig.add_axes([0.25, 0.1, 0.65, 0.03], axisbg='green')
+    x_slider = Slider(x_slider_axis, 'X', 0, 2, valinit=0)
+    y_slider = Slider(y_slider_axis, 'Y', 0, 5, valinit=y_mod)
+
+    def update(val):
+        y_mod = int(y_slider.val)
+        print y_mod
+        curve.set_ydata(ydata ** y_mod)
+        # curve.set_xdata(xdata)
+        plt.draw()
+
+    x_slider.on_changed(update)
+    y_slider.on_changed(update)
+
+    reset_button_axis = fig.add_axes([0.5, 0.05, 0.15, 0.03])
+    reset_button = Button(reset_button_axis, 'Reset', color='lightgrey',
+                          hovercolor='grey')
+    def reset(evt):
+        x_slider.reset()
+        y_slider.reset()
+    reset_button.on_clicked(reset)
+
+
+    plt.show()
+
+def _set_alpha_value(data, alpha_value):
+    # XXX: Highly inefficient! img.set_alpha(slider.val) does not work,
+    # however.
+    for i, d in enumerate(data):
+        for ii, dd in enumerate(d):
+            data[i][ii][3] = alpha_value
+    return data
+
+def _annotate_alpha_value(axes, value):
+    axes.text(10, 20, 'Alpha:\n' + str(value), bbox={'facecolor': 'white',
+                                                     'edgecolor': 'black',
+                                                     'pad': 7.5,
+                                                     'alpha': 0.5})
+
+def alpha_values(data):
+    from matplotlib.widgets import Slider, Button, RadioButtons
+    
+    alpha_value = 1.0
+    init_value = 0.5
+    ax = fig.add_subplot(111)
+    fig.subplots_adjust(left=0.25, bottom=0.25)
+    img = ax.imshow(data, alpha=alpha_value)
+
+    slider_axis = fig.add_axes([0.25, 0.15, 0.65, 0.03], axisbg='grey')
+    slider = Slider(slider_axis, 'Alpha', 0, 1, valinit=init_value)
+
+    _annotate_alpha_value(ax, alpha_value)
+
+    def update(val):
+        ax.cla()
+        v = slider.val
+        new_data = _set_alpha_value(data, v)
+        ax.imshow(new_data, alpha=alpha_value)
+        _annotate_alpha_value(ax, v)
+        plt.draw()
+
+    slider.on_changed(update)
+
+    reset_button_axis = fig.add_axes([0.75, 0.075, 0.15, 0.03],
+                                     axisbg='grey')
+    reset_button = Button(reset_button_axis, 'Reset', color='grey',
+                          hovercolor='lightgrey')
+
+    def reset(evt):
+        new_data = _set_alpha_value(data, alpha_value)
+        ax.imshow(new_data, alpha=alpha_value)
+        slider.set_val(init_value)
+
+    reset_button.on_clicked(reset)
+
+    plt.show()
+
+
+if __name__ == '__main__':
+    def test_multi_plot():
+        # run(save=False, show=True)
+        data = np.arange(0, 150, 1)
+        # multi_plot(data, plots=len(data), steps=2, align_vertical=False)
+        multi_plot(data, plots=len(data), steps=10, align_vertical=False)
+
+    # test_multi_plot()
+
+    def test_sliders():
+        sliders(data=np.arange(0, 100, 1))
+
+    # test_sliders()
+
+    def test_alpha_values():
+        alpha_values(pylab.rand(200, 255, 4))
+
+    test_alpha_values()
+
